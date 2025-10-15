@@ -1,10 +1,10 @@
 const fs = require('fs');
 const path = require('path');
-const { parseCSV } = require('./parse-csv');
+const { parseFile } = require('./parse-csv');
 
 /**
- * סקריפט לעיבוד אצווה של קבצי CSV:
- * - סורק את התיקייה הנוכחית למציאת כל קבצי CSV
+ * סקריפט לעיבוד אצווה של קבצי CSV ו-XLSX:
+ * - סורק את התיקייה הנוכחית למציאת כל קבצי CSV ו-XLSX
  * - מעבד כל קובץ: מסנן עמודות ומבצע המרות
  * - שומר את הקבצים המעובדים בתיקייה 'adapted'
  */
@@ -109,7 +109,7 @@ function arrayToCSV(data, columns) {
 }
 
 /**
- * מעבד קובץ CSV בודד
+ * מעבד קובץ CSV או XLSX בודד
  * @param {string} filePath - נתיב לקובץ המקור
  * @param {string} outputDir - תיקיית היעד
  */
@@ -118,8 +118,8 @@ async function processCSVFile(filePath, outputDir) {
   console.log(`מעבד: ${fileName}`);
 
   try {
-    // פרסור הקובץ המקורי
-    const data = await parseCSV(filePath);
+    // פרסור הקובץ המקורי (תומך ב-CSV, XLSX, XLS)
+    const data = await parseFile(filePath);
 
     if (data.length === 0) {
       console.log(`  ⚠ הקובץ ריק, מדלג`);
@@ -156,7 +156,7 @@ async function main() {
   const currentDir = __dirname;
   const outputDir = path.join(currentDir, 'adapted');
 
-  console.log('=== סקריפט עיבוד קבצי CSV ===\n');
+  console.log('=== סקריפט עיבוד קבצי CSV ו-XLSX ===\n');
   console.log(`תיקיית מקור: ${currentDir}`);
   console.log(`תיקיית יעד: ${outputDir}\n`);
 
@@ -166,23 +166,24 @@ async function main() {
     console.log('✓ תיקיית adapted נוצרה\n');
   }
 
-  // מציאת כל קבצי ה-CSV בתיקייה הנוכחית
+  // מציאת כל קבצי ה-CSV ו-XLSX בתיקייה הנוכחית
   const files = fs.readdirSync(currentDir);
-  const csvFiles = files.filter(file =>
-    file.toLowerCase().endsWith('.csv') &&
-    fs.statSync(path.join(currentDir, file)).isFile()
-  );
+  const dataFiles = files.filter(file => {
+    const lowerFile = file.toLowerCase();
+    return (lowerFile.endsWith('.csv') || lowerFile.endsWith('.xlsx') || lowerFile.endsWith('.xls')) &&
+      fs.statSync(path.join(currentDir, file)).isFile();
+  });
 
-  if (csvFiles.length === 0) {
-    console.log('לא נמצאו קבצי CSV בתיקייה');
+  if (dataFiles.length === 0) {
+    console.log('לא נמצאו קבצי CSV או XLSX בתיקייה');
     return;
   }
 
-  console.log(`נמצאו ${csvFiles.length} קבצי CSV:\n`);
+  console.log(`נמצאו ${dataFiles.length} קבצים:\n`);
 
   // עיבוד כל הקבצים
-  for (const csvFile of csvFiles) {
-    const filePath = path.join(currentDir, csvFile);
+  for (const dataFile of dataFiles) {
+    const filePath = path.join(currentDir, dataFile);
     await processCSVFile(filePath, outputDir);
   }
 
