@@ -1,0 +1,6 @@
+participant,session,age,female="1", male="2",faceTesting,race,isFamous,orientation,oldnew,testkeys.keys,testkeys.rt,faceAsking,correctOption,familiarnessKeys.keys,extraColumn1,extraColumn2
+001,1,25,1,face001.jpg,caucasian,yes,upright,old,space,450,face001.jpg,left,5,ignored1,ignored2
+002,1,30,2,face002.jpg,asian,no,inverted,new,return,520,face002.jpg,right,3,ignored1,ignored2
+003,2,22,1,face003.jpg,african,yes,upright,old,space,380,face003.jpg,left,4,ignored1,ignored2
+004,2,28,2,face004.jpg,caucasian,no,upright,new,return,610,face004.jpg,right,2,ignored1,ignored2
+005,3,35,1,face005.jpg,hispanic,yes,inverted,old,space,490,face005.jpg,left,5,ignored1,ignored2

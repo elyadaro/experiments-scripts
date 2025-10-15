@@ -1,0 +1,4 @@
+participant,session,age,female="1",faceTesting,race,isFamous,orientation,oldnew,testkeys.keys,testkeys.rt,faceAsking,correctOption,familiarnessKeys.keys,someOtherColumn
+101,4,27,1,face101.jpg,caucasian,no,upright,new,space,555,face101.jpg,right,3,other
+102,4,31,1,face102.jpg,asian,yes,inverted,old,return,420,face102.jpg,left,4,other
+103,5,24,1,face103.jpg,african,no,upright,new,space,505,face103.jpg,right,2,other
