@@ -153,12 +153,24 @@ async function processCSVFile(filePath, outputDir) {
  * פונקציה ראשית
  */
 async function main() {
-  const currentDir = __dirname;
-  const outputDir = path.join(currentDir, 'adapted');
+  // קבלת נתיב תיקייה מ-CLI או שימוש בתיקייה הנוכחית
+  const inputDir = process.argv[2] ? path.resolve(process.argv[2]) : __dirname;
+  const outputDir = path.join(inputDir, 'adapted');
 
   console.log('=== סקריפט עיבוד קבצי CSV ו-XLSX ===\n');
-  console.log(`תיקיית מקור: ${currentDir}`);
+  console.log(`תיקיית מקור: ${inputDir}`);
   console.log(`תיקיית יעד: ${outputDir}\n`);
+
+  // בדיקה שתיקיית המקור קיימת
+  if (!fs.existsSync(inputDir)) {
+    console.error(`❌ שגיאה: התיקייה ${inputDir} לא קיימת`);
+    process.exit(1);
+  }
+
+  if (!fs.statSync(inputDir).isDirectory()) {
+    console.error(`❌ שגיאה: ${inputDir} אינה תיקייה`);
+    process.exit(1);
+  }
 
   // יצירת תיקיית היעד אם לא קיימת
   if (!fs.existsSync(outputDir)) {
@@ -166,12 +178,12 @@ async function main() {
     console.log('✓ תיקיית adapted נוצרה\n');
   }
 
-  // מציאת כל קבצי ה-CSV ו-XLSX בתיקייה הנוכחית
-  const files = fs.readdirSync(currentDir);
+  // מציאת כל קבצי ה-CSV ו-XLSX בתיקייה
+  const files = fs.readdirSync(inputDir);
   const dataFiles = files.filter(file => {
     const lowerFile = file.toLowerCase();
     return (lowerFile.endsWith('.csv') || lowerFile.endsWith('.xlsx') || lowerFile.endsWith('.xls')) &&
-      fs.statSync(path.join(currentDir, file)).isFile();
+      fs.statSync(path.join(inputDir, file)).isFile();
   });
 
   if (dataFiles.length === 0) {
@@ -183,7 +195,7 @@ async function main() {
 
   // עיבוד כל הקבצים
   for (const dataFile of dataFiles) {
-    const filePath = path.join(currentDir, dataFile);
+    const filePath = path.join(inputDir, dataFile);
     await processCSVFile(filePath, outputDir);
   }
 
@@ -192,6 +204,19 @@ async function main() {
 
 // הרצת הסקריפט
 if (require.main === module) {
+  // הצגת הוראות שימוש
+  if (process.argv.includes('--help') || process.argv.includes('-h')) {
+    console.log('שימוש: node process-csv-batch.js [נתיב-לתיקייה]');
+    console.log('\nאפשרויות:');
+    console.log('  נתיב-לתיקייה    תיקייה המכילה קבצי CSV/XLSX לעיבוד (ברירת מחדל: תיקייה נוכחית)');
+    console.log('  -h, --help       הצגת הוראות שימוש');
+    console.log('\nדוגמאות:');
+    console.log('  node process-csv-batch.js');
+    console.log('  node process-csv-batch.js ./data');
+    console.log('  node process-csv-batch.js C:\\Users\\myuser\\Documents\\data');
+    process.exit(0);
+  }
+
   main().catch(error => {
     console.error('שגיאה כללית:', error);
     process.exit(1);
