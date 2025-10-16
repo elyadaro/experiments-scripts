@@ -109,6 +109,50 @@ function arrayToCSV(data, columns) {
 }
 
 /**
+ * מסיר שורות של תמונות מפורסמות שהנבדק לא הכיר
+ * @param {Array<Object>} data - המידע המעובד
+ * @returns {Array<Object>} - נתונים מסוננים
+ */
+function removeUnrecognizedFamous(data) {
+  // שלב 1: בניית מיפוי של תמונות מפורסמות מתוך שורות faceTesting
+  const famousImages = new Set();
+  for (const row of data) {
+    if (row.faceTesting && row.isFamous === 'famous') {
+      famousImages.add(row.faceTesting);
+    }
+  }
+
+  // שלב 2: בניית מיפוי של תמונות שהנבדק לא הכיר (familiarnessKeys.keys = "4")
+  const unrecognizedImages = new Set();
+  for (const row of data) {
+    if (row.faceAsking && row['familiarnessKeys.keys'] === '4') {
+      unrecognizedImages.add(row.faceAsking);
+    }
+  }
+
+  // שלב 3: מציאת תמונות שהן גם מפורסמות וגם לא הוכרו
+  const imagesToRemove = new Set();
+  for (const image of famousImages) {
+    if (unrecognizedImages.has(image)) {
+      imagesToRemove.add(image);
+    }
+  }
+
+  // שלב 4: סינון השורות - הסרת כל השורות (faceTesting ו-faceAsking) של תמונות אלו
+  const filteredData = data.filter(row => {
+    const imageName = row.faceTesting || row.faceAsking;
+    return !imageName || !imagesToRemove.has(imageName);
+  });
+
+  const removedCount = data.length - filteredData.length;
+  if (removedCount > 0) {
+    console.log(`  → הוסרו ${removedCount} שורות של ${imagesToRemove.size} תמונות מפורסמות שלא הוכרו`);
+  }
+
+  return filteredData;
+}
+
+/**
  * יוצר שם קובץ בפורמט: {participant}_{gender}-{session}.csv
  * @param {Object} firstRow - השורה הראשונה מהנתונים המעובדים
  * @param {string} originalFileName - שם הקובץ המקורי (לשימוש כ-fallback)
@@ -162,17 +206,20 @@ async function processCSVFile(filePath, outputDir) {
     // עיבוד כל השורות
     const processedData = data.map(row => processRow(row, genderColumn));
 
+    // סינון תמונות מפורסמות שלא הוכרו
+    const filteredData = removeUnrecognizedFamous(processedData);
+
     // המרה ל-CSV
-    const csvContent = arrayToCSV(processedData, REQUIRED_COLUMNS);
+    const csvContent = arrayToCSV(filteredData, REQUIRED_COLUMNS);
 
     // יצירת שם קובץ פלט בפורמט: {participant}_{gender}-{session}.csv
-    const outputFileName = generateOutputFileName(processedData[0], fileName);
+    const outputFileName = generateOutputFileName(filteredData[0], fileName);
     const outputPath = path.join(outputDir, outputFileName);
 
     // כתיבה לקובץ חדש
     fs.writeFileSync(outputPath, csvContent, 'utf8');
 
-    console.log(`  ✓ נשמר ב: ${outputPath} (${processedData.length} שורות)`);
+    console.log(`  ✓ נשמר ב: ${outputPath} (${filteredData.length} שורות)`);
 
   } catch (error) {
     console.error(`  ✗ שגיאה בעיבוד ${fileName}:`, error.message);
@@ -253,4 +300,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { processCSVFile, processRow, convertGender };
+module.exports = { processCSVFile, processRow, convertGender, removeUnrecognizedFamous };
