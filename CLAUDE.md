@@ -26,7 +26,12 @@ Compares the first 75 rows of two CSV files:
 **CLI Usage**: `node compare-csv.js <file1.csv> <file2.csv>`
 
 ### 3. process-csv-batch.js - Batch CSV/XLSX Processor
-The most complex script, performs batch transformation of CSV/XLSX files:
+The most complex script, performs batch transformation of CSV/XLSX files for facial recognition research data.
+
+**Research Data Context**:
+Each file represents results from a single research participant who identified numerous face images. The data contains two types of rows:
+- **faceTesting rows**: Contain the main experimental results and the conditions/properties of the face image shown
+- **faceAsking rows**: Contain information about the participant's familiarity with the face. If `familiarnessKeys.keys` equals '4', the participant is considered unfamiliar with the face; any other value means they are familiar with it
 
 **Data Transformation**:
 - Filters rows to include only specific columns (defined in `REQUIRED_COLUMNS`)
