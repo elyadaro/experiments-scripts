@@ -9,8 +9,8 @@ const { parseFile } = require('./parse-csv');
  * - שומר את הקבצים המעובדים בתיקייה 'adapted'
  */
 
-// רשימת העמודות המבוקשות לפי הסדר
-const REQUIRED_COLUMNS = [
+// כל העמודות לעיבוד ראשוני
+const ALL_COLUMNS = [
   'participant',
   'session',
   'age',
@@ -25,6 +25,21 @@ const REQUIRED_COLUMNS = [
   'faceAsking',
   'correctOption',
   'familiarnessKeys.keys'
+];
+
+// עמודות לפלט הסופי (רק עמודות faceTesting, בלי עמודות faceAsking)
+const OUTPUT_COLUMNS = [
+  'participant',
+  'session',
+  'age',
+  'gender',
+  'faceTesting',
+  'race',
+  'isFamous',
+  'orientation',
+  'oldnew',
+  'testkeys.keys',
+  'testkeys.rt'
 ];
 
 /**
@@ -63,7 +78,7 @@ function convertGender(value) {
 function processRow(row, genderColumn) {
   const processed = {};
 
-  for (const col of REQUIRED_COLUMNS) {
+  for (const col of ALL_COLUMNS) {
     if (col === 'gender') {
       // טיפול מיוחד בעמודת המגדר
       if (genderColumn && genderColumn in row) {
@@ -228,8 +243,8 @@ async function processCSVFile(filePath, outputDir) {
     // הסרת כל שורות faceAsking (נשארות רק שורות faceTesting)
     filteredData = removeFaceAskingRows(filteredData);
 
-    // המרה ל-CSV
-    const csvContent = arrayToCSV(filteredData, REQUIRED_COLUMNS);
+    // המרה ל-CSV (רק עם עמודות הפלט, בלי עמודות faceAsking)
+    const csvContent = arrayToCSV(filteredData, OUTPUT_COLUMNS);
 
     // יצירת שם קובץ פלט בפורמט: {participant}_{gender}-{session}.csv
     const outputFileName = generateOutputFileName(filteredData[0], fileName);
