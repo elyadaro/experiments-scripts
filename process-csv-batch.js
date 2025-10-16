@@ -109,6 +109,22 @@ function arrayToCSV(data, columns) {
 }
 
 /**
+ * מסיר את כל שורות faceAsking מהנתונים
+ * @param {Array<Object>} data - המידע המעובד
+ * @returns {Array<Object>} - נתונים מסוננים (רק שורות faceTesting)
+ */
+function removeFaceAskingRows(data) {
+  const filteredData = data.filter(row => row.faceTesting || row.faceTesting !== '');
+
+  const removedCount = data.length - filteredData.length;
+  if (removedCount > 0) {
+    console.log(`  → הוסרו ${removedCount} שורות faceAsking`);
+  }
+
+  return filteredData;
+}
+
+/**
  * מסיר שורות של תמונות מפורסמות שהנבדק לא הכיר
  * @param {Array<Object>} data - המידע המעובד
  * @returns {Array<Object>} - נתונים מסוננים
@@ -207,7 +223,10 @@ async function processCSVFile(filePath, outputDir) {
     const processedData = data.map(row => processRow(row, genderColumn));
 
     // סינון תמונות מפורסמות שלא הוכרו
-    const filteredData = removeUnrecognizedFamous(processedData);
+    let filteredData = removeUnrecognizedFamous(processedData);
+
+    // הסרת כל שורות faceAsking (נשארות רק שורות faceTesting)
+    filteredData = removeFaceAskingRows(filteredData);
 
     // המרה ל-CSV
     const csvContent = arrayToCSV(filteredData, REQUIRED_COLUMNS);
@@ -300,4 +319,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { processCSVFile, processRow, convertGender, removeUnrecognizedFamous };
+module.exports = { processCSVFile, processRow, convertGender, removeUnrecognizedFamous, removeFaceAskingRows };
