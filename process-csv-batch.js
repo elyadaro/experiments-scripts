@@ -39,7 +39,8 @@ const OUTPUT_COLUMNS = [
   'orientation',
   'oldnew',
   'testkeys.keys',
-  'testkeys.rt'
+  'testkeys.rt',
+  'HIT_FA'
 ];
 
 /**
@@ -70,6 +71,22 @@ function convertGender(value) {
 }
 
 /**
+ * מחשבת את הערך של עמודת HIT_FA
+ * @param {Object} row - השורה המעובדת
+ * @returns {string} - 'HIT', 'FA' או מחרוזת ריקה
+ */
+function calculateHitFA(row) {
+  if (row['testkeys.keys'] === 'right') {
+    if (row.oldnew === 'old') {
+      return 'HIT';
+    } else if (row.oldnew === 'new') {
+      return 'FA';
+    }
+  }
+  return '';
+}
+
+/**
  * מעבד שורת נתונים אחת
  * @param {Object} row - השורה המקורית
  * @param {string} genderColumn - שם עמודת המגדר במקור
@@ -91,6 +108,9 @@ function processRow(row, genderColumn) {
       processed[col] = col in row ? row[col] : '';
     }
   }
+
+  // חישוב עמודת HIT_FA
+  processed.HIT_FA = calculateHitFA(processed);
 
   return processed;
 }
