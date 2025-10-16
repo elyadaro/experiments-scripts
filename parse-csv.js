@@ -45,7 +45,12 @@ function parseXLSX(filePath) {
       const worksheet = workbook.Sheets[sheetName];
 
       // המרה אוטומטית לאובייקטים עם כותרות
-      const results = XLSX.utils.sheet_to_json(worksheet);
+      // raw: false - שומר את הערכים כמחרוזות במקום להמיר למספרים
+      // defval: '' - ערך ברירת מחדל לתאים ריקים
+      const results = XLSX.utils.sheet_to_json(worksheet, {
+        raw: false,
+        defval: ''
+      });
 
       resolve(results);
     } catch (error) {
