@@ -109,6 +109,33 @@ function arrayToCSV(data, columns) {
 }
 
 /**
+ * יוצר שם קובץ בפורמט: {participant}_{gender}-{session}.csv
+ * @param {Object} firstRow - השורה הראשונה מהנתונים המעובדים
+ * @param {string} originalFileName - שם הקובץ המקורי (לשימוש כ-fallback)
+ * @returns {string} - שם הקובץ
+ */
+function generateOutputFileName(firstRow, originalFileName) {
+  try {
+    const participant = firstRow.participant || '';
+    const gender = firstRow.gender || '';
+    const session = firstRow.session || '';
+
+    if (participant && gender && session) {
+      return `${participant}_${gender}-${session}.csv`;
+    } else {
+      console.log(`  ⚠ חסרים שדות לשם הקובץ (participant: ${participant}, gender: ${gender}, session: ${session})`);
+      console.log(`  → משתמש בשם המקורי`);
+      const fileNameWithoutExt = path.basename(originalFileName, path.extname(originalFileName));
+      return `${fileNameWithoutExt}.csv`;
+    }
+  } catch (error) {
+    console.log(`  ⚠ שגיאה ביצירת שם קובץ, משתמש בשם המקורי`);
+    const fileNameWithoutExt = path.basename(originalFileName, path.extname(originalFileName));
+    return `${fileNameWithoutExt}.csv`;
+  }
+}
+
+/**
  * מעבד קובץ CSV או XLSX בודד
  * @param {string} filePath - נתיב לקובץ המקור
  * @param {string} outputDir - תיקיית היעד
@@ -138,9 +165,8 @@ async function processCSVFile(filePath, outputDir) {
     // המרה ל-CSV
     const csvContent = arrayToCSV(processedData, REQUIRED_COLUMNS);
 
-    // יצירת שם קובץ פלט - תמיד עם סיומת .csv
-    const fileNameWithoutExt = path.basename(filePath, path.extname(filePath));
-    const outputFileName = `${fileNameWithoutExt}.csv`;
+    // יצירת שם קובץ פלט בפורמט: {participant}_{gender}-{session}.csv
+    const outputFileName = generateOutputFileName(processedData[0], fileName);
     const outputPath = path.join(outputDir, outputFileName);
 
     // כתיבה לקובץ חדש
