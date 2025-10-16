@@ -138,8 +138,12 @@ async function processCSVFile(filePath, outputDir) {
     // המרה ל-CSV
     const csvContent = arrayToCSV(processedData, REQUIRED_COLUMNS);
 
+    // יצירת שם קובץ פלט - תמיד עם סיומת .csv
+    const fileNameWithoutExt = path.basename(filePath, path.extname(filePath));
+    const outputFileName = `${fileNameWithoutExt}.csv`;
+    const outputPath = path.join(outputDir, outputFileName);
+
     // כתיבה לקובץ חדש
-    const outputPath = path.join(outputDir, fileName);
     fs.writeFileSync(outputPath, csvContent, 'utf8');
 
     console.log(`  ✓ נשמר ב: ${outputPath} (${processedData.length} שורות)`);
