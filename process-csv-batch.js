@@ -41,7 +41,8 @@ const OUTPUT_COLUMNS = [
   'condition',
   'testkeys.keys',
   'testkeys.rt',
-  'HIT_FA'
+  'HIT_FA',
+  'HIT_rt'
 ];
 
 /**
@@ -107,6 +108,18 @@ function buildCondition(row) {
 }
 
 /**
+ * מחשבת את הערך של עמודת HIT_rt
+ * @param {Object} row - השורה המעובדת
+ * @returns {string} - ערך ה-RT אם זה HIT, או מחרוזת ריקה
+ */
+function calculateHitRT(row) {
+  if (row.HIT_FA === 'HIT') {
+    return row['testkeys.rt'] || '';
+  }
+  return '';
+}
+
+/**
  * מעבד שורת נתונים אחת
  * @param {Object} row - השורה המקורית
  * @param {string} genderColumn - שם עמודת המגדר במקור
@@ -134,6 +147,9 @@ function processRow(row, genderColumn) {
 
   // חישוב עמודת condition
   processed.condition = buildCondition(processed);
+
+  // חישוב עמודת HIT_rt
+  processed.HIT_rt = calculateHitRT(processed);
 
   return processed;
 }
