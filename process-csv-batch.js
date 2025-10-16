@@ -38,6 +38,7 @@ const OUTPUT_COLUMNS = [
   'isFamous',
   'orientation',
   'oldnew',
+  'condition',
   'testkeys.keys',
   'testkeys.rt',
   'HIT_FA'
@@ -87,6 +88,25 @@ function calculateHitFA(row) {
 }
 
 /**
+ * בונה את עמודת condition מאיחוד של 4 עמודות
+ * @param {Object} row - השורה המעובדת
+ * @returns {string} - מחרוזת משולבת עם מפריד " | " או מחרוזת ריקה
+ */
+function buildCondition(row) {
+  const parts = [
+    row.race || '',
+    row.isFamous || '',
+    row.orientation || '',
+    row.oldnew || ''
+  ];
+
+  // מסנן ערכים ריקים ומחבר עם " | "
+  const filtered = parts.filter(part => part.trim() !== '');
+
+  return filtered.length > 0 ? filtered.join(' | ') : '';
+}
+
+/**
  * מעבד שורת נתונים אחת
  * @param {Object} row - השורה המקורית
  * @param {string} genderColumn - שם עמודת המגדר במקור
@@ -111,6 +131,9 @@ function processRow(row, genderColumn) {
 
   // חישוב עמודת HIT_FA
   processed.HIT_FA = calculateHitFA(processed);
+
+  // חישוב עמודת condition
+  processed.condition = buildCondition(processed);
 
   return processed;
 }
