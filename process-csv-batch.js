@@ -45,20 +45,18 @@ const OUTPUT_COLUMNS = [
   'HIT_rt'
 ];
 
-// עמודות לשורת הסיכום
+// עמודות לשורות הסיכום בפורמט long
 const SUMMARY_COLUMNS = [
   'participant',
   'session',
   'age',
   'gender',
-  'FNC_HIT', 'FNC_FA', 'FNC_m_rt',
-  'FNA_HIT', 'FNA_FA', 'FNA_m_rt',
-  'FLC_HIT', 'FLC_FA', 'FLC_m_rt',
-  'FLA_HIT', 'FLA_FA', 'FLA_m_rt',
-  'UNC_HIT', 'UNC_FA', 'UNC_m_rt',
-  'UNA_HIT', 'UNA_FA', 'UNA_m_rt',
-  'ULC_HIT', 'ULC_FA', 'ULC_m_rt',
-  'ULA_HIT', 'ULA_FA', 'ULA_m_rt'
+  'race',
+  'isFamous',
+  'orientation',
+  'HIT',
+  'FA',
+  'm_rt'
 ];
 
 /**
@@ -171,14 +169,14 @@ function processRow(row, genderColumn) {
 }
 
 /**
- * ממיר מערך של אובייקטים למחרוזת CSV עם אפשרות להוספת שורת סיכום
+ * ממיר מערך של אובייקטים למחרוזת CSV עם אפשרות להוספת שורות סיכום
  * @param {Array<Object>} data - המידע
  * @param {Array<string>} columns - רשימת העמודות
- * @param {Object|null} summaryRow - שורת סיכום אופציונלית
- * @param {Array<string>|null} summaryColumns - עמודות עבור שורת הסיכום
+ * @param {Array<Object>|null} summaryRows - שורות סיכום אופציונליות
+ * @param {Array<string>|null} summaryColumns - עמודות עבור שורות הסיכום
  * @returns {string} - מחרוזת CSV
  */
-function arrayToCSV(data, columns, summaryRow = null, summaryColumns = null) {
+function arrayToCSV(data, columns, summaryRows = null, summaryColumns = null) {
   const lines = [];
 
   // שורת כותרות
@@ -197,42 +195,29 @@ function arrayToCSV(data, columns, summaryRow = null, summaryColumns = null) {
     lines.push(values.join(','));
   }
 
-  // אם יש שורת סיכום, מוסיפים אותה
-  if (summaryRow && summaryColumns) {
+  // אם יש שורות סיכום, מוסיפים אותן
+  if (summaryRows && summaryRows.length > 0 && summaryColumns) {
     // שורה ריקה להפרדה
     lines.push('');
 
     // שורת כותרות לסיכום
     lines.push(summaryColumns.join(','));
 
-    // שורת נתונים לסיכום
-    const summaryValues = summaryColumns.map(col => {
-      let value = summaryRow[col] || '';
-      // אם הערך מכיל פסיק, מרכאות או שורה חדשה - עוטפים במרכאות
-      if (String(value).match(/[,"\n\r]/)) {
-        value = `"${String(value).replace(/"/g, '""')}"`;
-      }
-      return value;
-    });
-    lines.push(summaryValues.join(','));
+    // שורות נתונים לסיכום
+    for (const summaryRow of summaryRows) {
+      const summaryValues = summaryColumns.map(col => {
+        let value = summaryRow[col] || '';
+        // אם הערך מכיל פסיק, מרכאות או שורה חדשה - עוטפים במרכאות
+        if (String(value).match(/[,"\n\r]/)) {
+          value = `"${String(value).replace(/"/g, '""')}"`;
+        }
+        return value;
+      });
+      lines.push(summaryValues.join(','));
+    }
   }
 
   return lines.join('\n');
-}
-
-/**
- * יוצר קוד תנאי (FNC, FLC, UNA וכו')
- * @param {string} isFamous - 'famous' או 'unknown'
- * @param {string} orientation - 'normal' או 'flipped'
- * @param {string} race - 'caucasian' או 'afrikan'
- * @returns {string} - קוד התנאי (3 אותיות)
- */
-function getConditionCode(isFamous, orientation, race) {
-  const famousCode = isFamous === 'famous' ? 'F' : 'U';
-  const orientationCode = orientation === 'flipped' ? 'L' : 'N';
-  const raceCode = race === 'caucasian' ? 'C' : 'A';
-
-  return famousCode + orientationCode + raceCode;
 }
 
 /**
@@ -287,44 +272,49 @@ function calculateConditionStats(data, race, isFamous, orientation) {
 }
 
 /**
- * בונה שורת סיכום לנבדק
+ * בונה שורות סיכום בפורמט long לנבדק
  * @param {Array<Object>} data - כל השורות המסוננות של הנבדק (רק faceTesting)
- * @returns {Object} - אובייקט עם כל הנתונים הדמוגרפיים והסטטיסטיקות
+ * @returns {Array<Object>} - מערך של אובייקטים, כל אחד מייצג שורה בפורמט long
  */
-function buildSummaryRow(data) {
+function buildSummaryRows(data) {
   if (data.length === 0) {
-    return {};
+    return [];
   }
 
   // נתונים דמוגרפיים מהשורה הראשונה
   const firstRow = data[0];
-  const summaryRow = {
-    participant: firstRow.participant || '',
-    session: firstRow.session || '',
-    age: firstRow.age || '',
-    gender: firstRow.gender || ''
-  };
+  const summaryRows = [];
 
   // רשימת כל הקומבינציות: isFamous × orientation × race
   const famousValues = ['famous', 'unknown'];
   const orientationValues = ['normal', 'flipped'];
   const raceValues = ['caucasian', 'afrikan'];
 
-  // חישוב סטטיסטיקות עבור כל קומבינציה
+  // יצירת שורה עבור כל קומבינציה
   for (const isFamous of famousValues) {
     for (const orientation of orientationValues) {
       for (const race of raceValues) {
-        const code = getConditionCode(isFamous, orientation, race);
         const stats = calculateConditionStats(data, race, isFamous, orientation);
 
-        summaryRow[`${code}_HIT`] = stats.HIT;
-        summaryRow[`${code}_FA`] = stats.FA;
-        summaryRow[`${code}_m_rt`] = stats.m_rt;
+        const summaryRow = {
+          participant: firstRow.participant || '',
+          session: firstRow.session || '',
+          age: firstRow.age || '',
+          gender: firstRow.gender || '',
+          race: race,
+          isFamous: isFamous,
+          orientation: orientation,
+          HIT: stats.HIT,
+          FA: stats.FA,
+          m_rt: stats.m_rt
+        };
+
+        summaryRows.push(summaryRow);
       }
     }
   }
 
-  return summaryRow;
+  return summaryRows;
 }
 
 /**
@@ -447,11 +437,11 @@ async function processCSVFile(filePath, outputDir) {
     // הסרת כל שורות faceAsking (נשארות רק שורות faceTesting)
     filteredData = removeFaceAskingRows(filteredData);
 
-    // חישוב שורת סיכום
-    const summaryRow = buildSummaryRow(filteredData);
+    // חישוב שורות סיכום בפורמט long
+    const summaryRows = buildSummaryRows(filteredData);
 
-    // המרה ל-CSV (רק עם עמודות הפלט, בלי עמודות faceAsking) + שורת סיכום
-    const csvContent = arrayToCSV(filteredData, OUTPUT_COLUMNS, summaryRow, SUMMARY_COLUMNS);
+    // המרה ל-CSV (רק עם עמודות הפלט, בלי עמודות faceAsking) + שורות סיכום
+    const csvContent = arrayToCSV(filteredData, OUTPUT_COLUMNS, summaryRows, SUMMARY_COLUMNS);
 
     // יצירת שם קובץ פלט בפורמט: {participant}_{gender}-{session}.csv
     const outputFileName = generateOutputFileName(filteredData[0], fileName);
@@ -460,7 +450,7 @@ async function processCSVFile(filePath, outputDir) {
     // כתיבה לקובץ חדש
     fs.writeFileSync(outputPath, csvContent, 'utf8');
 
-    console.log(`  ✓ נשמר ב: ${outputPath} (${filteredData.length} שורות)`);
+    console.log(`  ✓ נשמר ב: ${outputPath} (${filteredData.length} שורות + ${summaryRows.length} שורות סיכום)`);
 
   } catch (error) {
     console.error(`  ✗ שגיאה בעיבוד ${fileName}:`, error.message);
