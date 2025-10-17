@@ -45,6 +45,22 @@ const OUTPUT_COLUMNS = [
   'HIT_rt'
 ];
 
+// עמודות לשורת הסיכום
+const SUMMARY_COLUMNS = [
+  'participant',
+  'session',
+  'age',
+  'gender',
+  'FNC_HIT', 'FNC_FA', 'FNC_m_rt',
+  'FNA_HIT', 'FNA_FA', 'FNA_m_rt',
+  'FLC_HIT', 'FLC_FA', 'FLC_m_rt',
+  'FLA_HIT', 'FLA_FA', 'FLA_m_rt',
+  'UNC_HIT', 'UNC_FA', 'UNC_m_rt',
+  'UNA_HIT', 'UNA_FA', 'UNA_m_rt',
+  'ULC_HIT', 'ULC_FA', 'ULC_m_rt',
+  'ULA_HIT', 'ULA_FA', 'ULA_m_rt'
+];
+
 /**
  * מזהה את שם עמודת המגדר בקובץ המקורי
  * @param {Object} row - שורה ראשונה מהנתונים
@@ -155,12 +171,14 @@ function processRow(row, genderColumn) {
 }
 
 /**
- * ממיר מערך של אובייקטים למחרוזת CSV
+ * ממיר מערך של אובייקטים למחרוזת CSV עם אפשרות להוספת שורת סיכום
  * @param {Array<Object>} data - המידע
  * @param {Array<string>} columns - רשימת העמודות
+ * @param {Object|null} summaryRow - שורת סיכום אופציונלית
+ * @param {Array<string>|null} summaryColumns - עמודות עבור שורת הסיכום
  * @returns {string} - מחרוזת CSV
  */
-function arrayToCSV(data, columns) {
+function arrayToCSV(data, columns, summaryRow = null, summaryColumns = null) {
   const lines = [];
 
   // שורת כותרות
@@ -179,7 +197,134 @@ function arrayToCSV(data, columns) {
     lines.push(values.join(','));
   }
 
+  // אם יש שורת סיכום, מוסיפים אותה
+  if (summaryRow && summaryColumns) {
+    // שורה ריקה להפרדה
+    lines.push('');
+
+    // שורת כותרות לסיכום
+    lines.push(summaryColumns.join(','));
+
+    // שורת נתונים לסיכום
+    const summaryValues = summaryColumns.map(col => {
+      let value = summaryRow[col] || '';
+      // אם הערך מכיל פסיק, מרכאות או שורה חדשה - עוטפים במרכאות
+      if (String(value).match(/[,"\n\r]/)) {
+        value = `"${String(value).replace(/"/g, '""')}"`;
+      }
+      return value;
+    });
+    lines.push(summaryValues.join(','));
+  }
+
   return lines.join('\n');
+}
+
+/**
+ * יוצר קוד תנאי (FNC, FLC, NNA וכו')
+ * @param {string} isFamous - 'famous' או 'notFamous'
+ * @param {string} orientation - 'normal' או 'flipped'
+ * @param {string} race - 'Caucasian' או 'African'
+ * @returns {string} - קוד התנאי (3 אותיות)
+ */
+function getConditionCode(isFamous, orientation, race) {
+  const famousCode = isFamous === 'famous' ? 'F' : 'N';
+  const orientationCode = orientation === 'flipped' ? 'L' : 'N';
+  const raceCode = race === 'Caucasian' ? 'C' : 'A';
+
+  return famousCode + orientationCode + raceCode;
+}
+
+/**
+ * מחשבת סטטיסטיקות עבור קומבינציה של תנאים
+ * @param {Array<Object>} data - כל השורות של הנבדק (רק faceTesting)
+ * @param {string} race - ערך race
+ * @param {string} isFamous - ערך isFamous
+ * @param {string} orientation - ערך orientation
+ * @returns {Object} - {HIT: string, FA: string, m_rt: string}
+ */
+function calculateConditionStats(data, race, isFamous, orientation) {
+  // סינון שורות לפי התנאים
+  const conditionRows = data.filter(row =>
+    row.race === race &&
+    row.isFamous === isFamous &&
+    row.orientation === orientation
+  );
+
+  if (conditionRows.length === 0) {
+    return { HIT: '', FA: '', m_rt: '' };
+  }
+
+  // חישוב HIT: מתוך שורות old, כמה 'right'
+  const oldRows = conditionRows.filter(row => row.oldnew === 'old');
+  const hitCount = oldRows.filter(row => row['testkeys.keys'] === 'right').length;
+  const hitRate = oldRows.length > 0 ? (hitCount / oldRows.length).toFixed(2) : '';
+
+  // חישוב FA: מתוך שורות new, כמה 'right'
+  const newRows = conditionRows.filter(row => row.oldnew === 'new');
+  const faCount = newRows.filter(row => row['testkeys.keys'] === 'right').length;
+  const faRate = newRows.length > 0 ? (faCount / newRows.length).toFixed(2) : '';
+
+  // חישוב ממוצע RT רק עבור HITs
+  const hitRows = conditionRows.filter(row => row.HIT_FA === 'HIT');
+  let meanRT = '';
+  if (hitRows.length > 0) {
+    const rtValues = hitRows
+      .map(row => parseFloat(row['testkeys.rt']))
+      .filter(val => !isNaN(val));
+
+    if (rtValues.length > 0) {
+      const sum = rtValues.reduce((acc, val) => acc + val, 0);
+      meanRT = (sum / rtValues.length).toFixed(2);
+    }
+  }
+
+  return {
+    HIT: hitRate,
+    FA: faRate,
+    m_rt: meanRT
+  };
+}
+
+/**
+ * בונה שורת סיכום לנבדק
+ * @param {Array<Object>} data - כל השורות המסוננות של הנבדק (רק faceTesting)
+ * @returns {Object} - אובייקט עם כל הנתונים הדמוגרפיים והסטטיסטיקות
+ */
+function buildSummaryRow(data) {
+  if (data.length === 0) {
+    return {};
+  }
+
+  // נתונים דמוגרפיים מהשורה הראשונה
+  const firstRow = data[0];
+  const summaryRow = {
+    participant: firstRow.participant || '',
+    session: firstRow.session || '',
+    age: firstRow.age || '',
+    gender: firstRow.gender || ''
+  };
+
+  // רשימת כל הקומבינציות: isFamous × orientation × race
+  const famousValues = ['famous', 'unknown'];
+  const orientationValues = ['normal', 'flipped'];
+  const raceValues = ['caucasian', 'african'];
+
+  // חישוב סטטיסטיקות עבור כל קומבינציה
+  for (const isFamous of famousValues) {
+    for (const orientation of orientationValues) {
+      for (const race of raceValues) {
+        const code = getConditionCode(isFamous, orientation, race);
+        const stats = calculateConditionStats(data, race, isFamous, orientation);
+
+        summaryRow[`${code}_HIT`] = stats.HIT;
+        summaryRow[`${code}_FA`] = stats.FA;
+        summaryRow[`${code}_m_rt`] = stats.m_rt;
+      }
+    }
+  }
+
+  return summaryRow;
 }
 
 /**
@@ -302,8 +447,11 @@ async function processCSVFile(filePath, outputDir) {
     // הסרת כל שורות faceAsking (נשארות רק שורות faceTesting)
     filteredData = removeFaceAskingRows(filteredData);
 
-    // המרה ל-CSV (רק עם עמודות הפלט, בלי עמודות faceAsking)
-    const csvContent = arrayToCSV(filteredData, OUTPUT_COLUMNS);
+    // חישוב שורת סיכום
+    const summaryRow = buildSummaryRow(filteredData);
+
+    // המרה ל-CSV (רק עם עמודות הפלט, בלי עמודות faceAsking) + שורת סיכום
+    const csvContent = arrayToCSV(filteredData, OUTPUT_COLUMNS, summaryRow, SUMMARY_COLUMNS);
 
     // יצירת שם קובץ פלט בפורמט: {participant}_{gender}-{session}.csv
     const outputFileName = generateOutputFileName(filteredData[0], fileName);
