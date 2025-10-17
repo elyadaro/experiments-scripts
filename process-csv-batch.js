@@ -144,6 +144,29 @@ function calculateHitRT(row) {
 function processRow(row, genderColumn) {
   const processed = {};
 
+  // טיפול מיוחד: חיפוש עמודה עם או בלי BOM
+  function findColumnValue(row, columnName) {
+    // חיפוש ישיר
+    if (columnName in row) {
+      return row[columnName];
+    }
+
+    // חיפוש עם BOM (Zero-Width No-Break Space)
+    const bomColumn = '\ufeff' + columnName;
+    if (bomColumn in row) {
+      return row[bomColumn];
+    }
+
+    // חיפוש case-insensitive עם BOM
+    for (const key in row) {
+      if (key.replace(/^\ufeff/, '').toLowerCase() === columnName.toLowerCase()) {
+        return row[key];
+      }
+    }
+
+    return '';
+  }
+
   for (const col of ALL_COLUMNS) {
     if (col === 'gender') {
       // טיפול מיוחד בעמודת המגדר
@@ -153,8 +176,8 @@ function processRow(row, genderColumn) {
         processed.gender = '';
       }
     } else {
-      // העתקה רגילה של עמודות אחרות
-      processed[col] = col in row ? row[col] : '';
+      // העתקה רגילה של עמודות אחרות עם טיפול ב-BOM
+      processed[col] = findColumnValue(row, col);
     }
   }
 
@@ -333,7 +356,7 @@ function buildSummaryRow(data) {
  * @returns {Array<Object>} - נתונים מסוננים (רק שורות faceTesting)
  */
 function removeFaceAskingRows(data) {
-  const filteredData = data.filter(row => row.faceTesting || row.faceTesting !== '');
+  const filteredData = data.filter(row => row.faceTesting && row.faceTesting.trim() !== '');
 
   const removedCount = data.length - filteredData.length;
   if (removedCount > 0) {
@@ -394,47 +417,21 @@ function removeUnrecognizedFamous(data) {
  * @returns {string} - שם הקובץ
  */
 function generateOutputFileName(firstRow, originalFileName) {
-  console.log(`\n  📝 DEBUG - יצירת שם קובץ:`);
-  console.log(`     קובץ מקורי: ${originalFileName}`);
-  console.log(`     firstRow קיים: ${!!firstRow}`);
-  console.log(`     firstRow type: ${typeof firstRow}`);
-
-  if (!firstRow) {
-    console.log(`  ❌ CRITICAL: firstRow הוא undefined/null!`);
-    console.log(`     → זה קורה כשכל השורות הוסרו בסינון`);
-    console.log(`     → משתמש בשם המקורי כ-fallback`);
-    const fileNameWithoutExt = path.basename(originalFileName, path.extname(originalFileName));
-    return `${fileNameWithoutExt}.csv`;
-  }
-
   try {
-    console.log(`     תוכן firstRow:`, JSON.stringify(firstRow, null, 2));
-
     const participant = firstRow.participant || '';
     const gender = firstRow.gender || '';
     const session = firstRow.session || '';
 
-    console.log(`     participant: "${participant}"`);
-    console.log(`     gender: "${gender}"`);
-    console.log(`     session: "${session}"`);
-
     if (participant && gender && session) {
-      const generatedName = `${participant}_${gender}-${session}.csv`;
-      console.log(`  ✓ שם קובץ נוצר בהצלחה: ${generatedName}`);
-      return generatedName;
+      return `${participant}_${gender}-${session}.csv`;
     } else {
-      console.log(`  ⚠ חסרים שדות לשם הקובץ:`);
-      console.log(`     participant: "${participant}" (${participant ? 'קיים' : 'חסר'})`);
-      console.log(`     gender: "${gender}" (${gender ? 'קיים' : 'חסר'})`);
-      console.log(`     session: "${session}" (${session ? 'קיים' : 'חסר'})`);
+      console.log(`  ⚠ חסרים שדות לשם הקובץ (participant: ${participant}, gender: ${gender}, session: ${session})`);
       console.log(`  → משתמש בשם המקורי`);
       const fileNameWithoutExt = path.basename(originalFileName, path.extname(originalFileName));
       return `${fileNameWithoutExt}.csv`;
     }
   } catch (error) {
-    console.log(`  ⚠ שגיאה ביצירת שם קובץ:`, error.message);
-    console.log(`     Stack trace:`, error.stack);
-    console.log(`  → משתמש בשם המקורי`);
+    console.log(`  ⚠ שגיאה ביצירת שם קובץ, משתמש בשם המקורי`);
     const fileNameWithoutExt = path.basename(originalFileName, path.extname(originalFileName));
     return `${fileNameWithoutExt}.csv`;
   }
@@ -447,14 +444,11 @@ function generateOutputFileName(firstRow, originalFileName) {
  */
 async function processCSVFile(filePath, outputDir) {
   const fileName = path.basename(filePath);
-  console.log(`\n${'='.repeat(60)}`);
   console.log(`מעבד: ${fileName}`);
-  console.log(`${'='.repeat(60)}`);
 
   try {
     // פרסור הקובץ המקורי (תומך ב-CSV, XLSX, XLS)
     const data = await parseFile(filePath);
-    console.log(`  ✓ קובץ נפרס: ${data.length} שורות במקור`);
 
     if (data.length === 0) {
       console.log(`  ⚠ הקובץ ריק, מדלג`);
@@ -465,35 +459,20 @@ async function processCSVFile(filePath, outputDir) {
     const genderColumn = findGenderColumn(data[0]);
     if (!genderColumn) {
       console.log(`  ⚠ לא נמצאה עמודת מגדר, ממשיך בלי המרה`);
-    } else {
-      console.log(`  ✓ עמודת מגדר זוהתה: "${genderColumn}"`);
     }
 
     // עיבוד כל השורות
     const processedData = data.map(row => processRow(row, genderColumn));
-    console.log(`  ✓ שורות עובדו: ${processedData.length} שורות`);
-
-    // ספירת faceTesting ו-faceAsking לפני סינון
-    const faceTestingCount = processedData.filter(row => row.faceTesting).length;
-    const faceAskingCount = processedData.filter(row => row.faceAsking).length;
-    console.log(`     → ${faceTestingCount} שורות faceTesting`);
-    console.log(`     → ${faceAskingCount} שורות faceAsking`);
 
     // סינון תמונות מפורסמות שלא הוכרו
     let filteredData = removeUnrecognizedFamous(processedData);
-    console.log(`  → לאחר סינון תמונות לא מוכרות: ${filteredData.length} שורות`);
 
     // הסרת כל שורות faceAsking (נשארות רק שורות faceTesting)
     filteredData = removeFaceAskingRows(filteredData);
-    console.log(`  → לאחר הסרת faceAsking: ${filteredData.length} שורות`);
 
-    // בדיקה קריטית: האם נשארו שורות?
+    // בדיקה: האם נשארו שורות?
     if (filteredData.length === 0) {
-      console.log(`\n  ❌ CRITICAL ERROR: כל השורות הוסרו בסינון!`);
-      console.log(`     הקובץ המקורי: ${fileName}`);
-      console.log(`     שורות במקור: ${data.length}`);
-      console.log(`     שורות לאחר עיבוד: ${processedData.length}`);
-      console.log(`     → לא ניתן ליצור קובץ ריק, מדלג על קובץ זה\n`);
+      console.log(`  ⚠ כל השורות הוסרו בסינון, מדלג על קובץ זה`);
       return;
     }
 
@@ -510,14 +489,10 @@ async function processCSVFile(filePath, outputDir) {
     // כתיבה לקובץ חדש
     fs.writeFileSync(outputPath, csvContent, 'utf8');
 
-    console.log(`\n  ✅ הצלחה! נשמר ב: ${outputPath}`);
-    console.log(`     שורות בקובץ הסופי: ${filteredData.length}\n`);
+    console.log(`  ✓ נשמר ב: ${outputPath} (${filteredData.length} שורות)`);
 
   } catch (error) {
-    console.error(`\n  ✗ שגיאה בעיבוד ${fileName}:`);
-    console.error(`     הודעה: ${error.message}`);
-    console.error(`     Stack trace:`, error.stack);
-    console.log('');
+    console.error(`  ✗ שגיאה בעיבוד ${fileName}:`, error.message);
   }
 }
 
