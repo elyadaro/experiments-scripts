@@ -296,11 +296,6 @@ function buildSummaryRows(data) {
       for (const race of raceValues) {
         const stats = calculateConditionStats(data, race, isFamous, orientation);
 
-        // אם אין נתונים לשילוב זה, דלג
-        if (!stats.HIT && !stats.FA && !stats.m_rt) {
-          continue;
-        }
-
         const summaryRow = {
           participant: firstRow.participant || '',
           session: firstRow.session || '',
