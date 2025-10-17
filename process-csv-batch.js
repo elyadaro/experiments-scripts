@@ -221,16 +221,16 @@ function arrayToCSV(data, columns, summaryRow = null, summaryColumns = null) {
 }
 
 /**
- * יוצר קוד תנאי (FNC, FLC, NNA וכו')
- * @param {string} isFamous - 'famous' או 'notFamous'
+ * יוצר קוד תנאי (FNC, FLC, UNA וכו')
+ * @param {string} isFamous - 'famous' או 'unknown'
  * @param {string} orientation - 'normal' או 'flipped'
- * @param {string} race - 'Caucasian' או 'African'
+ * @param {string} race - 'caucasian' או 'afrikan'
  * @returns {string} - קוד התנאי (3 אותיות)
  */
 function getConditionCode(isFamous, orientation, race) {
-  const famousCode = isFamous === 'famous' ? 'F' : 'N';
+  const famousCode = isFamous === 'famous' ? 'F' : 'U';
   const orientationCode = orientation === 'flipped' ? 'L' : 'N';
-  const raceCode = race === 'Caucasian' ? 'C' : 'A';
+  const raceCode = race === 'caucasian' ? 'C' : 'A';
 
   return famousCode + orientationCode + raceCode;
 }
@@ -308,7 +308,7 @@ function buildSummaryRow(data) {
   // רשימת כל הקומבינציות: isFamous × orientation × race
   const famousValues = ['famous', 'unknown'];
   const orientationValues = ['normal', 'flipped'];
-  const raceValues = ['caucasian', 'african'];
+  const raceValues = ['caucasian', 'afrikan'];
 
   // חישוב סטטיסטיקות עבור כל קומבינציה
   for (const isFamous of famousValues) {
