@@ -157,6 +157,20 @@ function findColumnValue(row, columnName) {
 }
 
 /**
+ * מנקה BOM (Byte Order Mark) מערכים
+ * @param {string|number|any} value - הערך המקורי
+ * @returns {string|number} - ערך מנוקה
+ */
+function cleanBOM(value) {
+  if (typeof value === 'string') {
+    // מסיר BOM מהתחלה, מהסוף, ומכל מקום (אם יש כמה)
+    return value.replace(/\ufeff/g, '').trim();
+  }
+  // אם זה מספר או סוג אחר, מחזיר כפי שהוא
+  return value;
+}
+
+/**
  * מעבד שורת נתונים אחת
  * @param {Object} row - השורה המקורית
  * @param {string} genderColumn - שם עמודת המגדר במקור
@@ -174,8 +188,9 @@ function processRow(row, genderColumn) {
         processed.gender = '';
       }
     } else {
-      // העתקה רגילה של עמודות אחרות עם טיפול ב-BOM
-      processed[col] = findColumnValue(row, col);
+      // העתקה רגילה של עמודות אחרות עם טיפול ב-BOM בשם + ניקוי ערך
+      const rawValue = findColumnValue(row, col);
+      processed[col] = cleanBOM(rawValue);
     }
   }
 
@@ -183,7 +198,13 @@ function processRow(row, genderColumn) {
   processed.HIT_FA = calculateHitFA(processed);
 
   // חישוב עמודת condition
-  processed.condition = buildCondition(processed);
+  processed.condition = buildCondition({
+    ...processed,
+    race: cleanBOM(processed.race),
+    isFamous: cleanBOM(processed.isFamous),
+    orientation: cleanBOM(processed.orientation),
+    oldnew: cleanBOM(processed.oldnew)
+  });
 
   // חישוב עמודת HIT_rt
   processed.HIT_rt = calculateHitRT(processed);
