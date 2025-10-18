@@ -431,8 +431,9 @@ function generateOutputFileName(firstRow, originalFileName) {
  * מעבד קובץ CSV או XLSX בודד
  * @param {string} filePath - נתיב לקובץ המקור
  * @param {string} outputDir - תיקיית היעד
+ * @param {Array<Object>} allSummaryRows - מערך לאיסוף כל שורות הסיכום
  */
-async function processCSVFile(filePath, outputDir) {
+async function processCSVFile(filePath, outputDir, allSummaryRows) {
   const fileName = path.basename(filePath);
   console.log(`מעבד: ${fileName}`);
 
@@ -462,6 +463,9 @@ async function processCSVFile(filePath, outputDir) {
 
     // חישוב שורות סיכום בפורמט long
     const summaryRows = buildSummaryRows(filteredData);
+
+    // איסוף שורות הסיכום לקובץ הכולל
+    allSummaryRows.push(...summaryRows);
 
     // המרה ל-CSV (רק עם עמודות הפלט, בלי עמודות faceAsking) + שורות סיכום
     const csvContent = arrayToCSV(filteredData, OUTPUT_COLUMNS, summaryRows, SUMMARY_COLUMNS);
@@ -524,10 +528,37 @@ async function main() {
 
   console.log(`נמצאו ${dataFiles.length} קבצים:\n`);
 
+  // מערך לאיסוף כל שורות הסיכום
+  const allSummaryRows = [];
+
   // עיבוד כל הקבצים
   for (const dataFile of dataFiles) {
     const filePath = path.join(inputDir, dataFile);
-    await processCSVFile(filePath, outputDir);
+    await processCSVFile(filePath, outputDir, allSummaryRows);
+  }
+
+  // יצירת קובץ summary.csv עם כל שורות הסיכום ברצף
+  if (allSummaryRows.length > 0) {
+    const summaryPath = path.join(outputDir, 'summary.csv');
+    const lines = [];
+
+    // שורת כותרות
+    lines.push(SUMMARY_COLUMNS.join(','));
+
+    // שורות סיכום ברצף, בלי רווחים
+    for (const row of allSummaryRows) {
+      const values = SUMMARY_COLUMNS.map(col => {
+        let value = row[col] || '';
+        if (String(value).match(/[,"\n\r]/)) {
+          value = `"${String(value).replace(/"/g, '""')}"`;
+        }
+        return value;
+      });
+      lines.push(values.join(','));
+    }
+
+    fs.writeFileSync(summaryPath, lines.join('\n'), 'utf8');
+    console.log(`\n✓ נוצר קובץ סיכום: ${summaryPath} (${allSummaryRows.length} שורות)`);
   }
 
   console.log('\n=== סיום עיבוד ===');
