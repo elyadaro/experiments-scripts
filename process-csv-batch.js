@@ -133,6 +133,29 @@ function calculateHitRT(row) {
   return '';
 }
 
+// טיפול מיוחד: חיפוש עמודה עם או בלי BOM
+function findColumnValue(row, columnName) {
+  // חיפוש ישיר
+  if (columnName in row) {
+    return row[columnName];
+  }
+
+  // חיפוש עם BOM (Zero-Width No-Break Space)
+  const bomColumn = '\ufeff' + columnName;
+  if (bomColumn in row) {
+    return row[bomColumn];
+  }
+
+  // חיפוש case-insensitive עם BOM
+  for (const key in row) {
+    if (key.replace(/^\ufeff/, '').toLowerCase() === columnName.toLowerCase()) {
+      return row[key];
+    }
+  }
+
+  return '';
+}
+
 /**
  * מעבד שורת נתונים אחת
  * @param {Object} row - השורה המקורית
@@ -151,8 +174,8 @@ function processRow(row, genderColumn) {
         processed.gender = '';
       }
     } else {
-      // העתקה רגילה של עמודות אחרות
-      processed[col] = col in row ? row[col] : '';
+      // העתקה רגילה של עמודות אחרות עם טיפול ב-BOM
+      processed[col] = findColumnValue(row, col);
     }
   }
 
